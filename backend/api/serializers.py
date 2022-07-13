@@ -1,5 +1,7 @@
+import base64
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
@@ -9,48 +11,6 @@ from recipes.models import Recipe, RecipeIngredient, Tag
 from rest_framework import serializers
 
 User = get_user_model()
-
-
-# class Base64ImageField(serializers.ImageField):
-
-#     def to_internal_value(self, data):
-#         import base64
-#         import uuid
-
-#         import six
-#         from django.core.files.base import ContentFile
-
-#         # Check if this is a base64 string
-#         if isinstance(data, six.string_types):
-#             # Check if the base64 string is in the "data:" format
-#             if 'data:' in data and ';base64,' in data:
-#                 # Break out the header from the base64 content
-#                 header, data = data.split(';base64,')
-
-#             # Try to decode the file. Return validation error if it fails.
-#             try:
-#                 decoded_file = base64.b64decode(data)
-#             except TypeError:
-#                 self.fail('invalid_image')
-
-#             # Generate file name:
-#             file_name = str(uuid.uuid4())[:12]
-#             # 12 characters are more than enough.
-#             # Get the file name extension:
-#             file_extension = self.get_file_extension(file_name, decoded_file)
-
-#             complete_file_name = "%s.%s" % (file_name, file_extension, )
-
-#             data = ContentFile(decoded_file, name=complete_file_name)
-
-#         return super(Base64ImageField, self).to_internal_value(data)
-
-#     def get_file_extension(self, file_name, decoded_file):
-#         import imghdr
-
-#         extension = imghdr.what(file_name, decoded_file)
-
-#         return "jpg" if extension == "jpeg" else extension
 
 
 class UserCreateSerializer(UserCreateSerializer):
@@ -79,7 +39,7 @@ class UserSerializer(UserSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username', 'email', 'id')
+        fields = ('username', 'email', 'id', 'first_name', 'last_name')
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
@@ -99,11 +59,16 @@ class FavoriteSerializer(serializers.ModelSerializer):
                     "errors": "Рецепт уже в избранном"
                 }
             )
-        return data
+
+        return {
+            "user": User.objects.get(pk=data['user']['id']),
+            "recipe": Recipe.objects.get(pk=data['recipe']['id'])
+        }
 
     def create(self, validated_data):
         user = validated_data["user"]
         recipe = validated_data["recipe"]
+        print(user, recipe)
         Favorite.objects.get_or_create(user=user, recipe=recipe)
         return validated_data
 
@@ -188,7 +153,8 @@ class BasketSerializer(serializers.ModelSerializer):
                     'errors': 'рецепт уже в корзине'
                 }
             )
-        return data
+        return {"user": User.objects.get(pk=user),
+                "recipe": Recipe.objects.get(pk=recipe)}
 
     def create(self, validated_data):
         user = validated_data['user']
@@ -318,6 +284,15 @@ class RecipeSerializer(serializers.ModelSerializer):
                 amount=i.get('amount'),
             )
 
+    @staticmethod
+    def base64_file(data, name=None):
+        _format, _img_str = data.split(';base64,')
+        _name, ext = _format.split('/')
+        if not name:
+            name = _name.split(":")[-1]
+        return ContentFile(base64.b64decode(_img_str),
+                           name='{}.{}'.format(name, ext))
+
     @transaction.atomic
     def create(self, validated_data):
         current_user = self.context.get('request').user
@@ -327,9 +302,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         name = self.validate_name(
             self.initial_data.get('name')
         )
-        image = self.validate_image(
+        image = self.base64_file(self.validate_image(
             self.initial_data.get('image')
-        )
+        ))
         text = self.validate_text(
             self.initial_data.get('text')
         )
@@ -355,8 +330,9 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeMinifiedSerializer(serializers.ModelSerializer):
-    image = Base64ImageField()
+    image = serializers.ImageField()
+    author = UserSerializer(read_only=True)
 
     class Meta:
         model = Recipe
-        fields = ('id', 'name', 'image', 'cooking_time')
+        fields = ('id', 'name', 'image', 'cooking_time', 'author')
