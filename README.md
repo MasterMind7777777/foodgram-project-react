@@ -2,8 +2,9 @@
 
 ## Статус
 ![example workflow](https://github.com/MasterMind7777777/foodgram-project-react/actions/workflows/foodgram.yml/badge.svg)
+сервер временно отключен 
 
-## Стек
+## Технологии
 [![Python](https://img.shields.io/badge/-Python-464646?style=flat-square&logo=Python)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/-Django-464646?style=flat-square&logo=Django)](https://www.djangoproject.com/)
 [![Django REST Framework](https://img.shields.io/badge/-Django%20REST%20Framework-464646?style=flat-square&logo=Django%20REST%20Framework)](https://www.django-rest-framework.org/)
@@ -30,7 +31,7 @@
 
 ## Адрес сайта
 
-http://51.250.23.190/ (Временно отключён)
+http://51.250.23.190/ (Временно отключен)
 
 ##### Автор
 *Нестерёнок Георгий Дмитриевич*
